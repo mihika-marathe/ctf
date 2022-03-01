@@ -83,33 +83,37 @@ class Defense(CaptureAgent):
         # initalizes a list of opponents on our side (aka dangerous opponents)
         dangerousOpponents = ()
         for op in getOpponents(gameState):
-            if self.red and isOnRedSide(op):
+            if self.red and self.isOnRedSide(op):
                 dangerousOpponents.append(op)
-            elif self.blue and isOnBlueSide(op):
+            elif self.blue and self.isOnBlueSide(op):
                 dangerousOpponents.append(op)
         # the most dangerous opponent is on our side and closest to our food
         # the most in danger capsule is the capsule closest to the opponent
-        closestDist = -float("inf")
-        mostDangerousOp = None
+        mostDangerousOp = ()
         for op in dangerousOpponents:
             for foo in self.food:
-                if closestDist > getDistance(op, foo):
-                    closestDist = getDistance(op, foo)
-                    mostDangerous = op  # the most dangerous opponent
+                if 5 < getDistance(op, foo):
+                    mostDangerous.append(op)  # the most dangerous opponent
+
+    # def foodToParse(self, gameState):
+
     def chooseAction(self, gameState):
         """
         Randomly pick an action.
         """
         actions = gameState.getLegalActions(self.index)
         # if none on our side, move toward food near middle or patrol around
-        if len(dangerousOpponents) > 0:
+        if len(mostDangerous) > 0:
             d = float("inf")
             bestAction = None
+            # chase closest dangerous opponent
+            shortest = min(getDistance(self.index, mostDangerous) for most in mostDangerous):
             for action in actions:
                 suc = self.getSuccessor(gameState, action)
-                if getDistance(suc, mostDangerous) < d
-                    d = getDistance(suc, mostDangerous)
+                if getDistance(suc, shortest) < d
+                    d = getDistance(suc, shortest)  # go for shortest opponent
                     bestAction = action
             if bestAction not None:
                 return bestAction
-        return random.choice(actions)
+            # go to food and parse around the food closest to the middle
+        return random.choice(actions)   # need to change this
