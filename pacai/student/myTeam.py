@@ -61,8 +61,13 @@ class Defense(CaptureAgent):
     You should look at `pacai.core.baselineTeam` for more details about how to create an agent.
     """
 
-    def __init__(self, index, **kwargs):
+    def __init__(self, foodDist, attackDist, gameState, numCapsules, index, **kwargs):
         super().__init__(index, **kwargs)
+
+        self.foodDist = -float("inf")
+        self.attackDist = -float("inf")
+        self.gameState = gameState
+        self.numCapsules = numCapsules
 
     def registerInitialState(self, gameState):
         """
