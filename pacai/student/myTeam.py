@@ -107,13 +107,13 @@ class Defense(CaptureAgent):
             d = float("inf")
             bestAction = None
             # chase closest dangerous opponent
-            shortest = min(getDistance(self.index, mostDangerous) for most in mostDangerous):
+            shortest = min(getDistance(self.index, mostDangerous) for most in mostDangerous)
             for action in actions:
                 suc = self.getSuccessor(gameState, action)
-                if getDistance(suc, shortest) < d
+                if getDistance(suc, shortest) < d:
                     d = getDistance(suc, shortest)  # go for shortest opponent
                     bestAction = action
-            if bestAction not None:
+            if bestAction is not None:
                 return bestAction
             # go to food and parse around the food closest to the middle
         return random.choice(actions)   # need to change this
