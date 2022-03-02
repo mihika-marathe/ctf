@@ -1,11 +1,13 @@
 from pacai.util import reflection
 
 import random
+import time
+import logging
 from pacai.util.probability import flipCoin
 from pacai.agents.capture.capture import CaptureAgent
 from pacai.core.distanceCalculator import Distancer
 from pacai.agents.capture.reflex import ReflexCaptureAgent
-
+from pacai.core.directions import Directions
 
 def createTeam(firstIndex, secondIndex, isRed,
         first = 'Offense',
@@ -71,7 +73,7 @@ class Offense(ReflexCaptureAgent):
             'distanceToCapsule': -1
         }
 
-class Defense(CaptureAgent):
+class Defense(ReflexCaptureAgent):
     """
     A Dummy agent to serve as an example of the necessary agent structure.
     You should look at `pacai.core.baselineTeam` for more details about how to create an agent.
@@ -79,57 +81,67 @@ class Defense(CaptureAgent):
 
     def __init__(self, index, **kwargs):
         super().__init__(index, **kwargs)
-        self.food = [] # getFoodYouAreDefending(self).asList()
-        self.mostDangerousOp = None
 
-    def registerInitialState(self, gameState):
-        """
-        This method handles the initial setup of the agent and populates useful fields,
-        such as the team the agent is on and the `pacai.core.distanceCalculator.Distancer`.
+    def getFeatures(self, gameState, action):
+        features = {}
 
-        IMPORTANT: If this method runs for more than 15 seconds, your agent will time out.
-        """
-        super().registerInitialState(gameState)
+        successor = self.getSuccessor(gameState, action)
+        myState = successor.getAgentState(self.index)
+        myPos = myState.getPosition()
 
-        # Your initialization code goes here, if you need any.
-        # initalizes a list of opponents on our side (aka dangerous opponents)
-        self.food = self.getFoodYouAreDefending(gameState).asList()
-        dangerousOpponents = ()
-        '''
-        for op in self.getOpponents(gameState):
-            if self.red and gameState.isOnRedSide(op):
-                dangerousOpponents.append(op)
-            elif self.red is False and gameState.isOnBlueSide(op):
-                dangerousOpponents.append(op)
-        '''
-        # the most dangerous opponent is on our side and closest to our food
-        # the most in danger capsule is the capsule closest to the opponent
-        for op in dangerousOpponents:
-            for foo in self.food:
-                if 5 < getDistance(op, foo):
-                    self.mostDangerousOp = op
-                    # mostDangerous.append(op)  # the most dangerous opponent
+        # Computes whether we're on defense (1) or offense (0).
+        features['onDefense'] = 1
+        if (myState.isPacman()):
+            features['onDefense'] = 0
 
-    # def foodToParse(self, gameState):
+        # Computes distance to invaders we can see.
+        enemies = [successor.getAgentState(i) for i in self.getOpponents(successor)]
+        invaders = [a for a in enemies if a.isPacman() and a.getPosition() is not None]
+        features['numInvaders'] = len(invaders)
 
+        if (len(invaders) > 0):
+            dists = [self.getMazeDistance(myPos, a.getPosition()) for a in invaders]
+            features['invaderDistance'] = min(dists)
+
+        if (action == Directions.STOP):
+            features['stop'] = 1
+
+        rev = Directions.REVERSE[gameState.getAgentState(self.index).getDirection()]
+        if (action == rev):
+            features['reverse'] = 1
+
+        return features
+    def getWeights(self, gameState, action):
+        return {
+            'numInvaders': -1000,
+            'onDefense': 100,
+            'invaderDistance': -10,
+            'stop': -100,
+            'reverse': -2
+        }
     def chooseAction(self, gameState):
         """
-        Randomly pick an action.
+        Picks among the actions with the highest return from `ReflexCaptureAgent.evaluate`.
         """
+
         actions = gameState.getLegalActions(self.index)
-        # if none on our side, move toward food near middle or patrol around
-        if self.mostDangerousOp != None:
-            d = float("inf")
-            bestAction = None
-            # chase closest dangerous opponent
-            shortest = min(getDistance(self.index, mostDangerous) for most in mostDangerous)
-            for action in actions:
-                suc = self.getSuccessor(gameState, action)
-                if getDistance(suc, shortest) < d:
-                    d = getDistance(suc, shortest)  # go for shortest opponent
-                    bestAction = action
-            if bestAction is not None:
-                return bestAction
-            # go to food and parse around the food closest to the middle
-        return random.choice(actions)   # need to change this
+
+        start = time.time()
+        values = [self.evaluate(gameState, a) for a in actions]
+        logging.debug('evaluate() time for agent %d: %.4f' % (self.index, time.time() - start))
+
+        maxValue = max(values)
+        bestActions = [a for a, v in zip(actions, values) if v == maxValue]
+
+        return random.choice(bestActions)
+    def evaluate(self, gameState, action):
+        """
+        Computes a linear combination of features and feature weights.
+        """
+
+        features = self.getFeatures(gameState, action)
+        weights = self.getWeights(gameState, action)
+        stateEval = sum(features[feature] * weights[feature] for feature in features)
+
+        return stateEval
 
