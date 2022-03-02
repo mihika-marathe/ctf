@@ -4,6 +4,7 @@ import random
 from pacai.util.probability import flipCoin
 from pacai.agents.capture.capture import CaptureAgent
 from pacai.core.distanceCalculator import Distancer
+from pacai.agents.capture.reflex import ReflexCaptureAgent
 
 
 def createTeam(firstIndex, secondIndex, isRed,
@@ -24,132 +25,44 @@ def createTeam(firstIndex, secondIndex, isRed,
         eval(second)(secondIndex)]
 
 
-class Offense(CaptureAgent):
+class Offense(ReflexCaptureAgent):
     """
-    A Dummy agent to serve as an example of the necessary agent structure.
-    You should look at `pacai.core.baselineTeam` for more details about how to create an agent.
+    A reflex agent that seeks food.
+    This agent will give you an idea of what an offensive agent might look like,
+    but it is by no means the best or only way to build an offensive agent.
     """
 
     def __init__(self, index, **kwargs):
-        super().__init__(index, **kwargs)
+        super().__init__(index)
 
-        self.qvalues = []
+    def getFeatures(self, gameState, action):
+        features = {}
+        successor = self.getSuccessor(gameState, action)
+        features['successorScore'] = self.getScore(successor)
 
-        self.foodlist = []
-        self.opponents = []
-        self.index = index
+        # Compute distance to the nearest food.
+        foodList = self.getFood(successor).asList()
+        # capsuleList = self.getCapsules(self, gameState).asList()
 
-        self.pos = 0
+        # This should always be True, but better safe than sorry.
+        if (len(foodList) > 0):
+            myPos = successor.getAgentState(self.index).getPosition()
+            minDistance = min([self.getMazeDistance(myPos, food) for food in foodList])
+            features['distanceToFood'] = minDistance
 
-    def registerInitialState(self, gameState):
-        """
-        This method handles the initial setup of the agent and populates useful fields,
-        such as the team the agent is on and the `pacai.core.distanceCalculator.Distancer`.
+        # if(len(capsuleList) > 0):
+          #  myPos = successor.getAgentState(self.index).getPosition()
+          #  minDistance = min([self.getMazeDistance(myPos, cap) for cap in capsuleList])
+          #  features['distanceToCapsule'] = minDistance
 
-        IMPORTANT: If this method runs for more than 15 seconds, your agent will time out.
-        """
 
-        super().registerInitialState(gameState)
+        return features
 
-        # Your initialization code goes here, if you need any.
-
-        self.opponents = self.getOpponents(gameState)
-        self.foodlist = self.getFood(gameState).asList()
-        self.pos = gameState.getAgentState(self.index).getPosition() 
-
-    def getQValue(self, state, action):
-        """
-        Get the Q-Value for a `pacai.core.gamestate.AbstractGameState`
-        and `pacai.core.directions.Directions`.
-        Should return 0.0 if the (state, action) pair has never been seen.
-        """
-
-        if (state, action) in self.qvalues:
-            return self.qvalues[(state, action)]
-        else:
-            return 0
-
-    def getValue(self, state):
-        """
-        Return the value of the best action in a state.
-        """
-
-        value = -999999
-        action = None
-        actions = gameState.getLegalActions(self.index)
-        if (len(actions) == 0):
-            return None
-        else:
-            for a in actions:
-                v = self.getQValue(state, a)
-                if (v > value):
-                    value = v
-                    action = a
-                # breaks ties between best actions
-                elif (v == value):
-                    ties = [a, action]
-                    action = random.choice(ties)
-        return action
-
-    def update(self, state, action, nextState, reward):
-        # (1 - a) Q(s, a) + a(sample) formula from ws4
-        updated_q = (1 - self.getAlpha()) * self.getQValue(state, action)
-        actions = self.getLegalActions(nextState)
-        if (len(actions) == 0):
-            updated_q += self.getAlpha() * reward
-        else:
-            value = -999999
-            for a in actions:
-                next_value = self.getQValue(nextState, a)
-                if (next_value > value):
-                    value = next_value
-            updated_q += self.getAlpha() * (reward + (self.getDiscountRate() * value))
-        self.qvalues[(state, action)] = updated_q
-
-    def getPolicy(self, state):
-        """
-        Return the best action in a state.
-        I.E., the action that solves: `max_action Q(state, action)`.
-        Where the max is over legal actions.
-        Note that if there are no legal actions, which is the case at the terminal state,
-        you should return a value of None.
-
-        This method pairs with `QLearningAgent.getValue`,
-        which returns the value of the best action.
-        Whereas this method returns the best action itself.
-        """
-
-        value = -999999
-        action = None
-        actions = state.getLegalActions(self.index)
-        if (len(actions) == 0):
-            return None
-        else:
-            for a in actions:
-                v = self.getQValue(state, a)
-                if (v > value):
-                    value = v
-                    action = a
-                # breaks ties between best actions
-                elif (v == value):
-                    ties = [a, action]
-                    action = random.choice(ties)
-        return action
-
-    def chooseAction(self, gameState):
-        """
-        Choose best action.
-        """
-
-        actions = gameState.getLegalActions(self.index)
-        if (len(actions) == 0):
-            return None
-        else:
-            # determines which action is chosen
-            if (flipCoin(0.2) is True):
-                return random.choice(actions)
-            else:
-                return self.getPolicy(gameState)
+    def getWeights(self, gameState, action):
+        return {
+            'successorScore': 100,
+            'distanceToFood': -1
+        }
 
 class Defense(CaptureAgent):
     """
