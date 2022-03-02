@@ -45,6 +45,8 @@ class Offense(ReflexCaptureAgent):
         # Compute distance to the nearest food.
         foodList = self.getFood(successor).asList()
         capsuleList = self.getCapsules(gameState)
+        enemies = [successor.getAgentState(i) for i in self.getOpponents(successor)]
+        invaders = [a.getPosition() for a in enemies]
 
         # This should always be True, but better safe than sorry.
         if (len(capsuleList) > 0):
@@ -58,11 +60,6 @@ class Offense(ReflexCaptureAgent):
             features['distanceToFood'] = minDistance
 
 
-        # if(len(capsuleList) > 0):
-          #  myPos = successor.getAgentState(self.index).getPosition()
-          #  minDistance = min([self.getMazeDistance(myPos, cap) for cap in capsuleList])
-          #  features['distanceToCapsule'] = minDistance
-
 
         return features
 
@@ -70,7 +67,8 @@ class Offense(ReflexCaptureAgent):
         return {
             'successorScore': 100,
             'distanceToFood': -1,
-            'distanceToCapsule': -1
+            'distanceToCapsule': -1,
+            'distanceToGhost': -1
         }
 
 class Defense(ReflexCaptureAgent):
