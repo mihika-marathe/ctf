@@ -3,6 +3,7 @@ from pacai.util import reflection
 import random
 import time
 import logging
+from pacai.core.distance import maze
 from pacai.util.probability import flipCoin
 from pacai.agents.capture.capture import CaptureAgent
 from pacai.core.distanceCalculator import Distancer
@@ -59,8 +60,6 @@ class Offense(ReflexCaptureAgent):
             minDistance = min([self.getMazeDistance(myPos, food) for food in foodList])
             features['distanceToFood'] = minDistance
 
-
-
         return features
 
     def getWeights(self, gameState, action):
@@ -70,6 +69,50 @@ class Offense(ReflexCaptureAgent):
             'distanceToCapsule': -1,
             'distanceToGhost': -1
         }
+
+    def chooseAction(self, gameState):
+        """
+        Picks among the actions with the highest return from `ReflexCaptureAgent.evaluate`.
+        """
+
+        actions = gameState.getLegalActions(self.index)
+
+        start = time.time()
+
+        # determines if ghost is next to them when an action is taken
+        values = []
+        op = self.getOpponents(gameState)
+        for a in actions:
+            # slug trap win condition = no stop?
+            if (a != Directions.STOP):
+                suc = self.getSuccessor(gameState, a)
+                bad_pos = False
+                for i in range(len(op)):
+                    # put in: ignore if you are immune to ghosts 
+                    # small incentive to get rid of ghosts on our side? or just completely ignore them
+                    op_state = suc.getAgentState(op[i])
+                    self_state = suc.getAgentState(self.index)
+                    if (op_state.isScaredGhost() is False or (op_state.isPacman() is True and self_state.isScaredGhost is False)):
+                        next_pos = suc.getAgentState(self.index).getPosition()
+                        op_pos = gameState.getAgentState(op[i]).getPosition()
+                        # difference between pos if action is taken and current pos
+                        dist = self.getMazeDistance(next_pos, op_pos)
+                        if (dist <= 1):
+                            bad_pos = True
+                # if action taken doesn't collide with a ghost
+                if (bad_pos is False):
+                    values.append((a, self.evaluate(gameState, a)))
+
+        bestVal = -999999
+        bestAction = None
+        for i in range(len(values)):
+            if (values[i][1] > bestVal):
+                bestVal = values[i][1]
+                bestAction = values[i][0]
+        if bestAction != None:
+            return bestAction
+        else:
+            return random.choice(actions)
 
 class Defense(ReflexCaptureAgent):
     """
