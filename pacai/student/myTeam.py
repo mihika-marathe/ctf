@@ -210,7 +210,9 @@ class Defense(ReflexCaptureAgent):
 
     def chooseAction(self, gameState):
         """
-        Picks among the actions with the highest return from `ReflexCaptureAgent.evaluate`.
+        Picks among the actions with 
+        the highest return from 
+        `ReflexCaptureAgent.evaluate`.
         """
         myState = gameState.getAgentState(self.index)
         # if no agents are on our sidee return on patrol
@@ -222,6 +224,11 @@ class Defense(ReflexCaptureAgent):
         return self.onDefense(gameState)
 
     def getInvaderDistAndPos(self, gameState, action):
+        """
+        returns the closest invader's position and distance
+        and my position which is used in the scaredActions
+        functioni
+        """
         # returns the closest invader with the closest distance to that invader
         successor = self.getSuccessor(gameState, action)
         myState = successor.getAgentState(self.index)
@@ -239,54 +246,39 @@ class Defense(ReflexCaptureAgent):
     def scaredActions(self, gameState):
         """
         provides best actions if we are a scared ghost
+        stays out of danger but in close range so that
+        the ghost can eat the pacman once it is not scared
         """
-        # if you are in danger of being eaten, retreat
-        # instead of finding best path, find furthest path
-        # make sure that going to the invader is not one of the legal actions
         actions = gameState.getLegalActions(self.index)
         maxDist = -float('inf')
         bestAction = None
         for a in actions:
+            # retreat if too close
             if self.getInvaderDistAndPos(gameState, a)[0] < 3:
-                # i think this does the opposite of what it should
                 invaderDist = self.getInvaderDistAndPos(gameState, a)[0]
                 invaderPos = self.getInvaderDistAndPos(gameState, a)[1]
                 myPos = self.getInvaderDistAndPos(gameState, a)[2]
-                # tempDist = self.getMazeDistance((myPos), (invaderPos))
                 if invaderDist > maxDist:
                     maxDist = invaderDist
                     bestAction = a
         if bestAction is not None:
             return bestAction
         else:
-            return random.choice(gameState.getLegalActions(self.index))
-        # else:
-            # onDefense finds the best path to agent
-            # should be fine because it isnt closer than 3
-        self.onDefense(gameState)
+            # onDefense finds the best path to the agent if too far
+            return self.onDefense(gameState)
 
     # def onPatrol(self, gameState):
     #     """
     #     provides best actions if we are on patrol
     #     should patrol near middle or near the entrances to our side
     #     """
+
     def onDefense(self, gameState):
         actions = gameState.getLegalActions(self.index)
-        op = self.getOpponents(gameState)
-        
-        for i in op:
-            op_actions = gameState.getLegalActions(i)
-            if gameState.getAgentState(i).isPacman() is True and gameState.getAgentState(self.index).isScaredGhost() is False and len(op_actions) <= 2:
-                return Directions.STOP
-            op_actions.clear()
-
-        # trap the enemy pacman if you're not a scared ghost
-        # is trapped if enemy pacman has only 2 legal moves: into our defense agent or stop
-
         start = time.time()
         values = [self.evaluate(gameState, a) for a in actions]
         logging.debug('evaluate() time for agent %d: %.4f' % (self.index, time.time() - start))
-
+        
         maxValue = max(values)
         bestActions = [a for a, v in zip(actions, values) if v == maxValue]
         return random.choice(bestActions)
@@ -295,7 +287,6 @@ class Defense(ReflexCaptureAgent):
         """
         Computes a linear combination of features and feature weights.
         """
-
         features = self.getFeatures(gameState, action)
         weights = self.getWeights(gameState, action)
         stateEval = sum(features[feature] * weights[feature] for feature in features)
