@@ -71,7 +71,8 @@ class Defense(ReflexCaptureAgent):
     A Dummy agent to serve as an example of the necessary agent structure.
     You should look at `pacai.core.baselineTeam` for more details about how to create an agent.
     """
-
+    # modeled off of reflex agent
+    # strategy: patrol near middle?
     def __init__(self, index, **kwargs):
         super().__init__(index, **kwargs)
 
@@ -104,6 +105,7 @@ class Defense(ReflexCaptureAgent):
             features['reverse'] = 1
 
         return features
+
     def getWeights(self, gameState, action):
         return {
             'numInvaders': -1000,
@@ -112,11 +114,70 @@ class Defense(ReflexCaptureAgent):
             'stop': -100,
             'reverse': -2
         }
+
     def chooseAction(self, gameState):
         """
         Picks among the actions with the highest return from `ReflexCaptureAgent.evaluate`.
         """
+        myState = gameState.getAgentState(self.index)
+        # if no agents are on our sidee return on patrol
+        # if len(getInvaders(gameState)) == 0:
+        #     return self.onPatrol(gameState)
+        if myState.isScaredGhost():
+            return self.scaredActions(gameState)
 
+        return self.onDefense(gameState)
+
+    def getInvaderDistAndPos(self, gameState, action):
+        # returns the closest invader with the closest distance to that invader
+        successor = self.getSuccessor(gameState, action)
+        myState = successor.getAgentState(self.index)
+        myPos = myState.getPosition()
+        enemies = [successor.getAgentState(i) for i in self.getOpponents(successor)]
+        invaders = [a for a in enemies if a.isPacman() and a.getPosition() is not None]
+        minDist = float('inf')
+        minPos = None
+        for i in invaders:
+            if minDist > self.getMazeDistance(myPos, i.getPosition()):
+                minDist = self.getMazeDistance(myPos, i.getPosition())
+                minPos = i.getPosition()
+        return minDist, minPos, myPos
+
+    def scaredActions(self, gameState):
+        """
+        provides best actions if we are a scared ghost
+        """
+        # if you are in danger of being eaten, retreat
+        # instead of finding best path, find furthest path
+        # make sure that going to the invader is not one of the legal actions
+        actions = gameState.getLegalActions(self.index)
+        maxDist = -float('inf')
+        bestAction = None
+        for a in actions:
+            if self.getInvaderDistAndPos(gameState, a)[0] < 3:
+                # i think this does the opposite of what it should
+                invaderDist = self.getInvaderDistAndPos(gameState, a)[0]
+                invaderPos = self.getInvaderDistAndPos(gameState, a)[1]
+                myPos = self.getInvaderDistAndPos(gameState, a)[2]
+                # tempDist = self.getMazeDistance((myPos), (invaderPos))
+                if invaderDist > maxDist:
+                    maxDist = invaderDist
+                    bestAction = a
+        if bestAction is not None:
+            return bestAction
+        else:
+            return random.choice(gameState.getLegalActions(self.index))
+        # else:
+            # onDefense finds the best path to agent
+            # should be fine because it isnt closer than 3
+        self.onDefense(gameState)
+
+    # def onPatrol(self, gameState):
+    #     """
+    #     provides best actions if we are on patrol
+    #     should patrol near middle or near the entrances to our side
+    #     """
+    def onDefense(self, gameState):
         actions = gameState.getLegalActions(self.index)
 
         start = time.time()
@@ -125,8 +186,8 @@ class Defense(ReflexCaptureAgent):
 
         maxValue = max(values)
         bestActions = [a for a, v in zip(actions, values) if v == maxValue]
-
         return random.choice(bestActions)
+
     def evaluate(self, gameState, action):
         """
         Computes a linear combination of features and feature weights.
