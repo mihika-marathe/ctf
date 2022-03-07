@@ -216,8 +216,16 @@ class Defense(ReflexCaptureAgent):
         """
         myState = gameState.getAgentState(self.index)
         # if no agents are on our sidee return on patrol
-        # if len(getInvaders(gameState)) == 0:
-        #     return self.onPatrol(gameState)
+        op = self.getOpponents(gameState)
+        invaders = 0
+        for a in gameState.getLegalActions(self.index):
+            for i in range(len(op)):
+                suc = self.getSuccessor(gameState, a)
+                op_state = suc.getAgentState(op[i])
+                if op_state.isPacman():
+                    invaders = invaders + 1
+        if invaders == 0:
+            return self.onPatrol(gameState)
         if myState.isScaredGhost():
             return self.scaredActions(gameState)
 
@@ -267,11 +275,42 @@ class Defense(ReflexCaptureAgent):
             # onDefense finds the best path to the agent if too far
             return self.onDefense(gameState)
 
-    # def onPatrol(self, gameState):
-    #     """
-    #     provides best actions if we are on patrol
-    #     should patrol near middle or near the entrances to our side
-    #     """
+    def closestEnemy(self, gameState, enemies, myPos):
+        minDist = float('inf')
+        minPos = None
+        for e in enemies:
+            if minDist > self.getMazeDistance(myPos, e.getPosition()):
+                minDist = self.getMazeDistance(myPos, e.getPosition())
+                minPos = e.getPosition()
+        return minDist, minPos
+
+    def onPatrol(self, gameState):
+        """
+        provides best actions if we are on patrol
+        should patrol near middle or near the entrances to our side
+        """
+        actions = gameState.getLegalActions(self.index)
+        bestAction = None
+        minDist = float('inf')
+            # if you arent at x axis of midline by 2 spaces, go there
+        for a in actions:
+            successor = self.getSuccessor(gameState, a)
+            myState = successor.getAgentState(self.index)
+            myPos = myState.getPosition()
+            # isPastMidline = myPos[0] >= int(gameState._layout.width / 2)
+            isPastMidline = False
+            if(self.red and gameState.isOnBlueSide(myPos) or (self.red is False and gameState.isOnRedSide(myPos))):
+                isPastMidline = True
+            enemies = [successor.getAgentState(i) for i in self.getOpponents(successor)]
+            enemyPos = self.closestEnemy(gameState, enemies, myPos)[1]
+            enemyDist = self.closestEnemy(gameState, enemies, myPos)[0]
+            if enemyDist < minDist:
+                minDist = enemyDist
+                bestAction = a
+        # if isPastMidline:
+        if isPastMidline is True:
+            return Directions.REVERSE[gameState.getAgentState(self.index).getDirection()]
+        return bestAction
 
     def onDefense(self, gameState):
         actions = gameState.getLegalActions(self.index)
