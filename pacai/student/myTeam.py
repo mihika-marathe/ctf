@@ -41,6 +41,9 @@ class Offense(ReflexCaptureAgent):
         self.prev = [] # keeps track of previous moves to see if we're stuck somewhere?
         self.capsules = []
         self.food = []
+        self.change = False
+        self.immune = False
+        self.closestfood = None
 
     def getFeatures(self, gameState, action):
         features = {}
@@ -60,10 +63,24 @@ class Offense(ReflexCaptureAgent):
             myPos = successor.getAgentState(self.index).getPosition()
             minDistance = min([self.getMazeDistance(myPos, cap) for cap in capsuleList])
             features['distanceToCapsule'] = minDistance
+            '''
+            if self.immune is False:
+                features['distanceToCapsule'] = minDistance * 60
+            else:
+                print("immune")
+                features['distanceToCapsule'] = 0.5
+            '''
 
         elif(len(foodList) > 0):
             myPos = successor.getAgentState(self.index).getPosition()
-            minDistance = min([self.getMazeDistance(myPos, food) for food in foodList])
+            if self.change is False:
+                minDistance = min([self.getMazeDistance(myPos, food) for food in foodList])
+                self.min_distance = minDistance
+                for food in foodList:
+                    if (self.getMazeDistance(myPos, food) == minDistance):
+                        self.closestfood = food
+            else:
+                minDistance = max([self.getMazeDistance(myPos, food) for food in foodList])
             features['distanceToFood'] = minDistance
 
         return features
@@ -91,6 +108,17 @@ class Offense(ReflexCaptureAgent):
         op = self.getOpponents(gameState)
         eat_food = False
         being_followed = False
+        bad_action = None
+        immunity = False
+
+        # if immune, then no * 50 for capsules
+        '''
+        for i in op:
+            if gameState.getAgentState(i).isScaredGhost():
+                immunity = True
+        self.immune = immunity
+        '''
+
         for a in actions:
             # slug trap win condition = no stop
             if (a != Directions.STOP):
@@ -108,18 +136,23 @@ class Offense(ReflexCaptureAgent):
                         op_pos = gameState.getAgentState(op[i]).getPosition()
                         # difference between pos if action is taken and current pos
                         dist = self.getMazeDistance(next_pos, op_pos)
-                        if (dist <= 1):
-                            bad_pos = True
-                            being_followed = True
                         '''
-                        # if op ghost is not in the way of the food
-                        # determines if next pos will lead to food being eaten
-                        else:
-                            for i in self.food:
-                                if i == next_pos:
-                                    eat_food = True
+                        if self.immune:
+                            for i in range(len(self.capsules)):
+                                if next_pos == self.capsules[i]:
+                                    bad_pos = True
                         '''
-
+                        # print(op[i], dist)
+                        # if (dist <= 1):
+                            # bad_pos = True
+                            # being_followed = True
+                            # keeps track of move that runs into the ghost
+                            # if it moves us closer towards closest food
+                            # print(self.getMazeDistance(next_pos, self.closestfood), self.min_distance)
+                            # if (self.getMazeDistance(next_pos, self.closestfood) < self.min_distance):
+                                # bad_action = a
+                                # print(a)
+                                # bad_action_value = self.evaluate(gameState, a)
                 # if action taken doesn't collide with a ghost
                 if (bad_pos is False):
                     # if the successor state doesn't lead into a dead end 
@@ -136,7 +169,7 @@ class Offense(ReflexCaptureAgent):
                 x = random.choice(values)
                 return x[0]
         '''
-
+        '''
         # determines if we're stuck in a tunnel and should die to save time
         # only one action besides stop
         if (len(values) == 1 and being_followed is True and gameState.getAgentState(self.index).isPacman()):
@@ -145,19 +178,28 @@ class Offense(ReflexCaptureAgent):
             self.stuck = 0
         if (self.stuck > 5):
             return random.choice(actions)
+        '''
 
-        # determines best action otherwise
+        # determines best actions from actions that aren't stop or run into the ghost
         for i in range(len(values)):
             if (values[i][1] > bestVal):
                 bestVal = values[i][1]
                 bestAction = values[i][0]
+
+        # edge case to us being blocked to the closest food by an agent
+        # if this happens, change path to furthest food instead
+        if bad_action != None:
+            self.change = not self.change
+
+        # perform best action, otherwise just perform the bad action
+        # because it means our only viable moves are stop and the bad action
+        # since we are in a dead end
         if bestAction != None:
             self.prev.append(bestAction)
             return bestAction
         else:
-            x = random.choice(actions)
-            self.prev.append(x)
-            return x
+            self.prev.append(bad_action)
+            return random.choice(actions)
 
 class Defense(ReflexCaptureAgent):
     """
