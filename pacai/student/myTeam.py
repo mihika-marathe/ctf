@@ -53,10 +53,14 @@ class Offense(ReflexCaptureAgent):
         capsuleList = self.getCapsules(gameState)
         self.capsules = capsuleList
         enemies = [successor.getAgentState(i) for i in self.getOpponents(successor)]
-        invaders = [a.getPosition() for a in enemies]
+        immune = False
+
+        for e in enemies:
+            if(e.isScaredGhost()):
+                immune = True
 
         # This should always be True, but better safe than sorry.
-        if (len(capsuleList) > 0):
+        if (len(capsuleList) > 0 and not immune):
             myPos = successor.getAgentState(self.index).getPosition()
             minDistance = min([self.getMazeDistance(myPos, cap) for cap in capsuleList])
             features['distanceToCapsule'] = minDistance
