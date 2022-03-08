@@ -290,53 +290,85 @@ class Defense(ReflexCaptureAgent):
         should patrol near middle or near the entrances to our side
         """
         actions = gameState.getLegalActions(self.index)
-        legalActions = []
-        for act in actions:
-            if self.midLineCheck(gameState, act):
-                legalActions.append(act)
         bestAction = None
         minDist = float('inf')
         myPosition = None
         enemyPosition = None
-        
         isAtMidline = False
             # if you arent at x axis of midline by 2 spaces, go there
-        for a in legalActions:
+        for a in actions:
             successor = self.getSuccessor(gameState, a)
             myState = successor.getAgentState(self.index)
             myPos = myState.getPosition()
             enemies = [successor.getAgentState(i) for i in self.getOpponents(successor)]
             enemyPos = self.closestEnemy(gameState, enemies, myPos)[1]
             enemyDist = self.closestEnemy(gameState, enemies, myPos)[0]
-            midLine = int(gameState._layout.width / 2)
-            if (self.red and (myPos[0] >= midLine - 2)) or (not self.red and (myPos[0] <= midLine - 1)):
+            if self.midLineCheck(gameState, a) is True:
                 isAtMidline = True
                 myPosition = myPos
                 enemyPosition = enemyPos
             if enemyDist < minDist:
                 minDist = enemyDist
-                # if self.midLineCheck(gameState, a) is False:
                 bestAction = a
         if isAtMidline is True:
-        # go towards enemy y axis norn or south
-        # if enemypos[1] > mypos[1] then go south else go north
+        # follow enemy y axis if at midline
             if enemyPosition[1] > myPosition[1]:
-                if "North" in actions:
-                    # if self.midLineCheck(gameState, Directions.NORTH):
+                if ("North" in actions):
+                    # if self.midLineCheck(gameState, Directions.NORTH) is True:
                         return Directions.NORTH
+                else:
+                    return self.bestMidlineAction(gameState, actions, enemyPosition)
             elif enemyPosition[1] < myPosition[1]:
-                if "South" in actions:
-                    # if self.midLineCheck(gameState, Directions.SOUTH):
-                    return Directions.SOUTH
-            else:
-                return Directions.REVERSE[gameState.getAgentState(self.index).getDirection()]
-        if bestAction is None:
-            # if len(legalActions) > 0:
-            #     return random.choice(legalActions)
-            # else:
-            return Directions.REVERSE[gameState.getAgentState(self.index).getDirection()]
-        else:
-            return bestAction
+                if ("South" in actions):
+                    # if self.midLineCheck(gameState, Directions.SOUTH) is True:
+                        # return Directions.SOUTH
+                        return Directions.SOUTH
+                else:
+                    return self.bestMidlineAction(gameState, actions, enemyPosition)
+                # else:
+                #     if self.red:
+                #         act = gameState.getLegalActions(self.index)
+                #         if ("East" in actions):
+                #             act.remove("East")
+                #         return random.choice(act)
+                #     elif not self.red:
+                #         act = gameState.getLegalActions(self.index)
+                #         if ("West" in actions):
+                #             act.remove("West")
+                #         return random.choice(act)
+            else:   
+                # rev = Directions.REVERSE[gameState.getAgentState(self.index).getDirection()]
+                # # if self.midLineCheck(gameState, rev) is True:
+                # return rev
+                # if we are on red side then try to go to more to our side
+                return self.bestMidlineAction(gameState, actions, enemyPosition)
+        return bestAction
+        # if bestAction is None:
+        #     # if len(legalActions) > 0:
+        #     #     return random.choice(legalActions)
+        #     # else:
+        #     return Directions.REVERSE[gameState.getAgentState(self.index).getDirection()]
+        # else:
+    def bestMidlineAction(self, gameState, actions, enemyPos):
+        """
+        provides best actions if we are at the midline
+        removes actions that would take us to the other side
+        """
+        minDist = float('inf')
+        bestAction = None
+        if self.red and ("East" in actions):
+            actions.remove("East")
+        elif (not self.red) and ("West" in actions):
+            actions.remove("West")
+        for a in actions:
+            successor = self.getSuccessor(gameState, a)
+            myState = successor.getAgentState(self.index)
+            myPos = myState.getPosition()
+            if minDist > self.getMazeDistance(myPos, enemyPos):
+                minDist = self.getMazeDistance(myPos, enemyPos)
+                bestAction = a
+        return bestAction
+
 
     def midLineCheck(self, gameState, action):
         successor = self.getSuccessor(gameState, action)
@@ -344,8 +376,11 @@ class Defense(ReflexCaptureAgent):
         myPos = myState.getPosition()
         isAtMidline = False
         midLine = int(gameState._layout.width / 2)
+        lenToMidRed = midLine - myPos[0]
+        lenToMidBlue = myPos[0] - (midLine-1)
+
         # if the action is not past midline will return true
-        if (self.red and (myPos[0] <= midLine -1)) or (not self.red and (myPos[0] >= midLine)):
+        if (self.red and (lenToMidRed < 3)) or (not self.red and (lenToMidBlue < 3)):
             isAtMidline = True
         return isAtMidline
       
