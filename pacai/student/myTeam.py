@@ -53,9 +53,10 @@ class Offense(ReflexCaptureAgent):
         self.prevOffPos.append(enemyPos)
         arrLen = len(self.prevOffPos)
         # removes oldest enemy position if length more than 30
-        if(arrLen > 20):
+        if(arrLen > 10):
             self.prevOffPos.pop(0)
         main = (0.0, 0.0)
+        match = 0
         count = 0
         # goes through all the enemy agents
         for pPos in self.prevOffPos:
@@ -64,10 +65,12 @@ class Offense(ReflexCaptureAgent):
                 main = pPos
             # compares rest of values
             else:
-                if(pPos != main):
-                    return False
+                if(pPos == main):
+                    match += 1
+                    if(match > 5):
+                        return True
             count += 1
-        return True
+        return False
 
     def getFeatures(self, gameState, action):
         features = {}
@@ -91,8 +94,6 @@ class Offense(ReflexCaptureAgent):
             # checks if stuck by comparing enemy positions
         
         blocked = self.checkStuck(gameState.getAgentState(self.index).getPosition())
-
-        print(gameState.getAgentState(self.index).getPosition())
 
         # goes to closest capsule if not already immune and not blocked
         if (len(capsuleList) > 0 and not immune and not blocked):
