@@ -41,6 +41,23 @@ class Offense(ReflexCaptureAgent):
         self.prev = [] # keeps track of previous moves to see if we're stuck somewhere?
         self.capsules = []
         self.food = []
+        self.prevStates = []
+        self.closest=0
+
+    def checkStuck(self, gameState):
+        count = 0
+        for pState in self.prevStates:
+            if(gameState.getAgentState(self.index) == pState):
+                count += 1
+        # self.prevStates.pop(1)
+        self.prevStates.append(gameState.getAgentState(self.index))
+        if(count > 2):
+            return True
+        return False
+
+
+            
+
 
     def getFeatures(self, gameState, action):
         features = {}
@@ -56,7 +73,7 @@ class Offense(ReflexCaptureAgent):
         immune = False
 
         for e in enemies:
-            if(e.isScaredGhost()):
+            if(e.getScaredTimer() > 0 and e.getScaredTimer() < 40):
                 immune = True
 
         # This should always be True, but better safe than sorry.
@@ -89,6 +106,9 @@ class Offense(ReflexCaptureAgent):
         actions = gameState.getLegalActions(self.index)
 
         start = time.time()
+
+        blocked = self.checkStuck(gameState)
+        #print(blocked)
 
         # determines if ghost is next to them when an action is taken
         values = []
