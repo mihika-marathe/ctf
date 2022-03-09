@@ -1,3 +1,4 @@
+from array import array
 from pacai.util import reflection
 
 import random
@@ -41,23 +42,32 @@ class Offense(ReflexCaptureAgent):
         self.prev = [] # keeps track of previous moves to see if we're stuck somewhere?
         self.capsules = []
         self.food = []
-        self.prevStates = []
+        self.prevOffPos = []
         self.closest=0
 
-    def checkStuck(self, gameState):
+    # Checks if there is an opponent defense agent blocking the offense
+    # INPUT: offense position, compares position to check if same
+    # OUTPUT: returns true or false
+    def checkStuck(self, enemyPos):
+        # adds enemy position to list
+        self.prevOffPos.append(enemyPos)
+        arrLen = len(self.prevOffPos)
+        # removes oldest enemy position if length more than 30
+        if(arrLen > 20):
+            self.prevOffPos.pop(0)
+        main = (0.0, 0.0)
         count = 0
-        for pState in self.prevStates:
-            if(gameState.getAgentState(self.index) == pState):
-                count += 1
-        # self.prevStates.pop(1)
-        self.prevStates.append(gameState.getAgentState(self.index))
-        if(count > 2):
-            return True
-        return False
-
-
-            
-
+        # goes through all the enemy agents
+        for pPos in self.prevOffPos:
+            # sets init
+            if(count == 0):
+                main = pPos
+            # compares rest of values
+            else:
+                if(pPos != main):
+                    return False
+            count += 1
+        return True
 
     def getFeatures(self, gameState, action):
         features = {}
@@ -72,20 +82,35 @@ class Offense(ReflexCaptureAgent):
         enemies = [successor.getAgentState(i) for i in self.getOpponents(successor)]
         immune = False
 
+        blocked = self.checkStuck(gameState)
+        # print(gameState.getLegalActions(self.index))
+
         for e in enemies:
             if(e.getScaredTimer() > 0 and e.getScaredTimer() < 40):
                 immune = True
+            # checks if stuck by comparing enemy positions
+        
+        blocked = self.checkStuck(gameState.getAgentState(self.index).getPosition())
 
-        # This should always be True, but better safe than sorry.
-        if (len(capsuleList) > 0 and not immune):
+        print(gameState.getAgentState(self.index).getPosition())
+
+        # goes to closest capsule if not already immune and not blocked
+        if (len(capsuleList) > 0 and not immune and not blocked):
             myPos = successor.getAgentState(self.index).getPosition()
             minDistance = min([self.getMazeDistance(myPos, cap) for cap in capsuleList])
             features['distanceToCapsule'] = minDistance
 
-        elif(len(foodList) > 0):
+        # goes to closest food when not blocked
+        elif(len(foodList) > 0 and not blocked):
             myPos = successor.getAgentState(self.index).getPosition()
             minDistance = min([self.getMazeDistance(myPos, food) for food in foodList])
             features['distanceToFood'] = minDistance
+
+        # goes to farthest food if blocked
+        elif(len(foodList) > 0):
+            myPos = successor.getAgentState(self.index).getPosition()
+            maxDistance = max([self.getMazeDistance(myPos, food) for food in foodList])
+            features['distanceToFood'] = maxDistance
 
         return features
 
@@ -106,9 +131,6 @@ class Offense(ReflexCaptureAgent):
         actions = gameState.getLegalActions(self.index)
 
         start = time.time()
-
-        blocked = self.checkStuck(gameState)
-        #print(blocked)
 
         # determines if ghost is next to them when an action is taken
         values = []
@@ -200,6 +222,7 @@ class Defense(ReflexCaptureAgent):
         myState = successor.getAgentState(self.index)
         myPos = myState.getPosition()
 
+
         # Computes whether we're on defense (1) or offense (0).
         features['onDefense'] = 1
         if (myState.isPacman()):
@@ -239,6 +262,7 @@ class Defense(ReflexCaptureAgent):
         `ReflexCaptureAgent.evaluate`.
         """
         myState = gameState.getAgentState(self.index)
+
         # if no agents are on our sidee return on patrol
         op = self.getOpponents(gameState)
         invaders = 0
