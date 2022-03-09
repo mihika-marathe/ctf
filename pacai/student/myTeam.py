@@ -265,8 +265,7 @@ class Defense(ReflexCaptureAgent):
         myState = gameState.getAgentState(self.index)
     
         if self.noInvaders(gameState) == 0:
-            while(self.noInvaders(gameState) == 0):
-                return self.onPatrol(gameState)
+            return self.onPatrol(gameState)
 
         elif myState.isScaredGhost():
             return self.scaredActions(gameState)
@@ -274,7 +273,6 @@ class Defense(ReflexCaptureAgent):
         return self.onDefense(gameState)
 
     def noInvaders(self, gameState):
-
         # if no agents are on our sidee return on patrol
         op = self.getOpponents(gameState)
         invaders = 0
@@ -359,14 +357,19 @@ class Defense(ReflexCaptureAgent):
             enemies = [successor.getAgentState(i) for i in self.getOpponents(successor)]
             enemyPos = self.closestEnemy(gameState, enemies, myPos)[1]
             enemyDist = self.closestEnemy(gameState, enemies, myPos)[0]
-            if self.midLineCheck(gameState, a) is True:
-                return self.bestMidlineAction(gameState, actions, enemyPos)
-            elif enemyDist < minDist:
+            if enemyDist < minDist:
                 minDist = enemyDist
                 bestAction = a 
-        return bestAction
+            if self.midLineCheck(gameState, a) is True:
+                enemyPosition = enemyPos
+                myPosition = myPos
+                return self.bestMidlineAction(gameState, actions, enemyPos, myPos)
+        if bestAction is not None:
+            return bestAction
+        else:
+            return Directions.STOP
        
-    def bestMidlineAction(self, gameState, actions, enemyPos):
+    def bestMidlineAction(self, gameState, actions, enemyPos, myPos):
         """
         provides best actions if we are at the midline
         removes actions that would take us to the other side
@@ -374,10 +377,15 @@ class Defense(ReflexCaptureAgent):
         # if the one right next to me is a scared ghost, eat it
         minDist = float('inf')
         bestAction = None
-        if self.red and ("East" in actions):
-            actions.remove("East")
-        elif (not self.red) and ("West" in actions):
-            actions.remove("West")
+        midLine = int(gameState._layout.width / 2)
+        lenToMidRed = midLine - myPos[0]
+        lenToMidBlue = myPos[0] - (midLine+1)
+        if self.red and lenToMidRed < 1:
+            if ("East" in actions):
+                actions.remove("East")
+        elif (not self.red) and lenToMidBlue < 1: 
+            if ("West" in actions):
+                actions.remove("West")
         for a in actions:
             successor = self.getSuccessor(gameState, a)
             myState = successor.getAgentState(self.index)
@@ -385,7 +393,10 @@ class Defense(ReflexCaptureAgent):
             if minDist > self.getMazeDistance(myPos, enemyPos):
                 minDist = self.getMazeDistance(myPos, enemyPos)
                 bestAction = a
-        return bestAction
+        if bestAction is not None:
+            return bestAction
+        else:
+            return Directions.STOP
 
     def midLineCheck(self, gameState, action):
         successor = self.getSuccessor(gameState, action)
@@ -394,9 +405,9 @@ class Defense(ReflexCaptureAgent):
         isAtMidline = False
         midLine = int(gameState._layout.width / 2)
         lenToMidRed = midLine - myPos[0]
-        lenToMidBlue = myPos[0] - (midLine-1)
+        lenToMidBlue = myPos[0] - (midLine+1)
         # if the action is not past midline will return true
-        if (self.red and (lenToMidRed < 3)) or (not self.red and (lenToMidBlue < 3)):
+        if (self.red and (lenToMidRed < 2)) or (not self.red and (lenToMidBlue < 2)):
             isAtMidline = True
         return isAtMidline
       
